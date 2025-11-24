@@ -15,6 +15,19 @@ Single-page React + Vite + Tailwind CSS experience that showcases a modern docto
 - React 19 with React Router 7
 - Tailwind CSS 3.x
 
+### AI Symptom Matching
+- Doctor detail pages include an “Ask AI” panel.
+- Users enter symptoms (e.g., “headache”, “skin rash”) and receive a rule-based recommendation that checks specialty fit and suggests alternatives.
+- Includes quick reference table:
+  - Headache → Neurologist
+  - Skin rash → Dermatologist
+  - Anxiety / Depression → Psychiatrist
+  - Fever / throat pain → General Physician
+
+### Data persistence
+- Booked appointments are persisted to `localStorage` (`careconnect_appointments`) and automatically rehydrated on load.
+- `DoctorsProvider` handles all read/write logic; swap with a backend API when ready.
+
 ### Getting started
 ```bash
 cd healthcare-portal
@@ -36,5 +49,10 @@ src/
   main.tsx           # App entry
 ```
 
-Appointments persist for the current session via React state; integrate your API by swapping out the context implementation. Tattoos from Tailwind ensure the design adapts from mobile to desktop.
+### Deliverables checklist
+- **GitHub repo:** update with your remote URL after pushing (e.g., `https://github.com/your-org/healthcare-portal`).
+- **Instructions:** this README (“Getting started”, “Tech stack”, etc.) documents setup and usage.
+- **AI Collaboration Log:** see `ai-collab.md` for tooling, prompt history, and reflections.
+
+Appointments, filters, and AI helpers are optimized for mobile-to-desktop layouts with Tailwind utilities.
 

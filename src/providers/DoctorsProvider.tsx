@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, useCallback } from 'react'
+import { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { doctors as doctorSeed } from '../data/doctors'
 import type { Appointment, Doctor, Filters, SortOption } from '../types'
@@ -23,12 +23,27 @@ const defaultFilters: Filters = {
 }
 
 const DoctorsContext = createContext<DoctorsContextValue | null>(null)
+const APPOINTMENTS_STORAGE_KEY = 'careconnect_appointments'
+
+const readStoredAppointments = (): Appointment[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(APPOINTMENTS_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 export const DoctorsProvider = ({ children }: { children: ReactNode }) => {
   const [doctors] = useState<Doctor[]>(doctorSeed)
   const [filters, setFilters] = useState<Filters>(defaultFilters)
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
-  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [appointments, setAppointments] = useState<Appointment[]>(() =>
+    readStoredAppointments(),
+  )
 
   const specialties = useMemo(
     () => ['All', ...new Set(doctors.map((doc) => doc.specialty))],
@@ -80,6 +95,18 @@ export const DoctorsProvider = ({ children }: { children: ReactNode }) => {
     },
     [setAppointments],
   )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(
+        APPOINTMENTS_STORAGE_KEY,
+        JSON.stringify(appointments),
+      )
+    } catch (error) {
+      console.error('Failed to persist appointments', error)
+    }
+  }, [appointments])
 
   const value: DoctorsContextValue = {
     doctors,

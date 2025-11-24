@@ -3,6 +3,56 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useDoctors } from '../providers/DoctorsProvider'
 import { BookingModal } from '../components/BookingModal'
 
+const symptomKnowledgeBase: Record<string, string[]> = {
+  Cardiology: [
+    'chest pain',
+    'palpitations',
+    'shortness of breath',
+    'hypertension',
+    'heart',
+    'fainting',
+  ],
+  Orthopedics: ['joint pain', 'back pain', 'injury', 'fracture', 'knee', 'hip', 'shoulder'],
+  Dermatology: ['skin', 'rash', 'acne', 'eczema', 'itching', 'hair loss', 'allergy'],
+  Neurology: ['migraine', 'headache', 'seizure', 'numbness', 'dizziness', 'memory'],
+  Pediatrics: ['child', 'baby', 'fever', 'immunization', 'cough', 'asthma'],
+  Psychiatry: ['anxiety', 'depression', 'sleep', 'stress', 'panic', 'adhd'],
+}
+
+const symptomExamples = [
+  { symptom: 'Headache', specialty: 'Neurologist' },
+  { symptom: 'Skin rash', specialty: 'Dermatologist' },
+  { symptom: 'Anxiety or depression', specialty: 'Psychiatrist' },
+  { symptom: 'Fever or throat pain', specialty: 'General Physician' },
+]
+
+const tokenizeSymptoms = (input: string) =>
+  input
+    .toLowerCase()
+    .split(/[,;]+|\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+
+const matchSpecialty = (specialty: string, tokens: string[]) => {
+  const keywords = symptomKnowledgeBase[specialty] ?? []
+  const hits = keywords.filter((keyword) =>
+    tokens.some((token) => token.includes(keyword) || keyword.includes(token)),
+  )
+  return hits
+}
+
+const findSuggestedSpecialty = (tokens: string[]) => {
+  for (const [specialty, keywords] of Object.entries(symptomKnowledgeBase)) {
+    const hits = keywords.filter((keyword) =>
+      tokens.some((token) => token.includes(keyword) || keyword.includes(token)),
+    )
+    if (hits.length) {
+      return { specialty, hits }
+    }
+  }
+  return null
+}
+
 const DetailStat = ({
   label,
   value,
@@ -21,6 +71,9 @@ export const DoctorDetailPage = () => {
   const navigate = useNavigate()
   const { doctors } = useDoctors()
   const [showModal, setShowModal] = useState(false)
+  const [symptoms, setSymptoms] = useState('')
+  const [aiResult, setAiResult] = useState<string | null>(null)
+  const [checkingMatch, setCheckingMatch] = useState(false)
 
   const doctor = useMemo(
     () => doctors.find((doc) => doc.id === Number(id)),
@@ -87,6 +140,79 @@ export const DoctorDetailPage = () => {
       <section className="grid gap-4 md:grid-cols-2">
         <DetailStat label="Consultation fee" value={`₹${doctor.consultationFee}`} />
         <DetailStat label="Languages" value={doctor.languages.join(', ')} />
+      </section>
+
+      <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-brand-gray">
+          Ask AI if this doctor is a good match
+        </h3>
+        <p className="text-sm text-slate-500">
+          Describe your symptoms and let our rules-based AI suggest whether {doctor.name} is
+          the right choice.
+        </p>
+        <div className="mt-3 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+          <div className="grid grid-cols-2 bg-white text-xs font-semibold uppercase tracking-wide text-slate-500 sm:text-sm">
+            <div className="px-4 py-2">Symptom</div>
+            <div className="px-4 py-2">Best specialty</div>
+          </div>
+          {symptomExamples.map((example) => (
+            <div
+              key={example.symptom}
+              className="grid grid-cols-2 border-t border-slate-100 text-sm text-slate-600"
+            >
+              <div className="px-4 py-2">{example.symptom}</div>
+              <div className="px-4 py-2 font-semibold">{example.specialty}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <input
+            value={symptoms}
+            onChange={(event) => setSymptoms(event.target.value)}
+            placeholder='e.g. "headaches", "skin rash", "anxiety"'
+            className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/20"
+          />
+          <button
+            className="rounded-2xl bg-brand-blue px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => {
+              const tokens = tokenizeSymptoms(symptoms)
+              if (!tokens.length) {
+                setAiResult('Please describe your symptoms to get a recommendation.')
+                return
+              }
+              setCheckingMatch(true)
+              setTimeout(() => {
+                const doctorMatch = matchSpecialty(doctor.specialty, tokens)
+                if (doctorMatch.length) {
+                  setAiResult(
+                    `Great news! ${doctor.name} regularly treats ${doctorMatch[0]}, so their ${doctor.specialty.toLowerCase()} expertise is a strong match.`,
+                  )
+                } else {
+                  const suggestion = findSuggestedSpecialty(tokens)
+                  if (suggestion && suggestion.specialty !== doctor.specialty) {
+                    setAiResult(
+                      `Those symptoms align more with ${suggestion.specialty}. You can still consult ${doctor.name}, but a ${suggestion.specialty.toLowerCase()} specialist might be ideal.`,
+                    )
+                  } else {
+                    setAiResult(
+                      `${doctor.name} can provide an initial assessment, but consider a general physician if symptoms persist.`,
+                    )
+                  }
+                }
+                setCheckingMatch(false)
+              }, 600)
+            }}
+            disabled={checkingMatch}
+          >
+            {checkingMatch ? 'Checking…' : 'Check Match with AI'}
+          </button>
+        </div>
+        {aiResult && (
+          <div className="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-brand-gray">
+            {aiResult}
+          </div>
+        )}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
